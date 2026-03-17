@@ -14,6 +14,19 @@ app.use(helmet());
 // Aceitar texto para a rota /copy
 app.use(express.text());
 
+const clean = (raw) => {
+    // Step 1: Strip wrapping quotes
+    let cleaned = raw.trim().replace(/^"|"$/g, '');
+
+    // Step 2: Unescape the escaped quotes
+    cleaned = cleaned.replace(/\\"/g, '"');
+
+    // Step 3: Remove literal \n and extra whitespace
+    cleaned = cleaned.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+    return cleaned
+}
+
 let content = {
     "a3175b39145aabc": {
         createdAt: new Date("2026-03-17 21:14"),
@@ -37,18 +50,25 @@ app.post('/copy', (req, res) => {
     }
     else {
         const newId = crypto.randomUUID()
+
         content[newId] = {
             createdAt: new Date(),
             value: req.body
         }
-        res.send(`/${newId}`)
+        res.send(newId)
     }
 })
 
 app.get('/:id', (req, res) => {
     const id = req.params.id
-    // Se o jwt existir, enviar o content
-    res.send(JSON.stringify(content[id].value))
+    
+    if (!content[id]){
+        res.status(404).send("404")
+    }
+    else{
+        const result = clean(content[id].value)
+        res.send(result)
+    }
 })
 
 app.listen(PORT, () => {

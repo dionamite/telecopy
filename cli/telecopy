@@ -1,0 +1,27 @@
+#!/bin/bash
+
+CONFIG_FILE="$HOME/.telecopy"
+
+if [ -n "$1" ]; then
+  response=$(curl -s -X POST http://localhost:8070/copy \
+    -H "Content-Type: text/plain" \
+    -d "$1")
+
+  hash=$(echo "$response" | tr -d '[:space:]')
+  echo "$hash"
+
+  if [ -n "$hash" ]; then
+    echo "$hash" > "$CONFIG_FILE"
+  fi
+
+else
+  if [ ! -f "$CONFIG_FILE" ] || [ -z "$(cat "$CONFIG_FILE")" ]; then
+    read -rp "Hash não encontrado. Introduz o hash: " hash
+    echo "$hash" > "$CONFIG_FILE"
+  else
+    hash=$(cat "$CONFIG_FILE")
+  fi
+
+  curl -s "http://localhost:8070/$hash"
+  echo
+fi
