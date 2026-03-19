@@ -2,13 +2,8 @@
 import express from "express";
 const app = express();
 
-// Redis client
-import { createClient } from "redis";
-const client = createClient();
-
-client.on("error", (err) => console.log("Redis Client Error", err));
-
-await client.connect();
+import { clean, createHashId } from "./services/cryptoService.js";
+import { redisClient } from "./database/redis.js";
 
 // Usar variáveis de ambiente - contêm configurações e/ou passwords
 import { configDotenv } from "dotenv";
@@ -21,19 +16,6 @@ app.use(helmet());
 
 // Aceitar texto para a rota /copy
 app.use(express.text());
-
-const clean = (raw) => {
-  // Step 1: Strip wrapping quotes
-  let cleaned = raw.trim().replace(/^"|"$/g, "");
-
-  // Step 2: Unescape the escaped quotes
-  cleaned = cleaned.replace(/\\"/g, '"');
-
-  // Step 3: Remove literal \n and extra whitespace
-  cleaned = cleaned.replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
-
-  return cleaned;
-};
 
 app.get("/", (req, res) => {
   res.send("Página Home.");
@@ -48,15 +30,17 @@ app.post("/copy", async (req, res) => {
   if (!req.body) {
     res.status(400).send("No content in body.");
   } else {
-    const newId = crypto.randomUUID();
+    const newId = createHashId();
 
     const value = {
       createdAt: new Date(),
       value: req.body,
     };
 
-    await client.set(newId, JSON.stringify(value));
+    // Salva o content no Redis
+    await redisClient.saveContent(newId, JSON.stringify(value));
 
+    // Retorna o ID
     res.send(newId);
   }
 });
@@ -64,7 +48,8 @@ app.post("/copy", async (req, res) => {
 app.get("/:id", async (req, res) => {
   const id = req.params.id;
 
-  const content = await client.get(id);
+  // Obtem o content com o ID
+  const content = await redisClient.getContent(id);
 
   if (!content) {
     res.status(404).send("404");
