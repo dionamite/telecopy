@@ -9,7 +9,7 @@ await client.connect();
 class RedisClient {
   async saveContent(id, data) {
     // Salva o content no Redis
-    await client.set(id, data);
+    await client.set(id, data, { expiration: 3600 });
   }
 
   async getContent(id) {
